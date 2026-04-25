@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ */
+/* Slide-in toast animation                                            */
+/* ------------------------------------------------------------------ */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in { animation: slide-in 0.3s ease-out; }
+
+/* ------------------------------------------------------------------ */
+/* Mobile touch improvements                                            */
+/* ------------------------------------------------------------------ */
+
+/* Prevent iOS text-size adjustment after orientation change */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* Smooth scroll everywhere */
+html { scroll-behavior: smooth; }
+
+/* Remove default tap highlight on iOS */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Buttons / interactive elements: ensure large-enough tap targets */
+button, [role="button"], a {
+  touch-action: manipulation; /* eliminates 300 ms tap delay on mobile */
+}
+
+/* Minimum 44 px tap target for small buttons */
+button {
+  min-height: 44px;
+}
+
+/* Prevent double-tap zoom on form inputs (iOS Safari) */
+input, select, textarea {
+  font-size: 16px !important; /* below 16 px triggers iOS zoom on focus */
+}
+
+/* Consistent focus ring for accessibility */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Prevent horizontal scroll on mobile */
+body { overflow-x: hidden; }
+
+/* Smooth overscroll on iOS */
+.overflow-y-auto, .overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}

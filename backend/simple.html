@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MBTAI Users</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 { 
+            color: #555; 
+            margin-top: 30px;
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-bottom: 20px;
+            background: white;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 12px 8px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #f8f9fa; 
+            font-weight: bold;
+            color: #333;
+        }
+        tr:nth-child(even) { 
+            background-color: #f9f9f9; 
+        }
+        tr:hover { 
+            background-color: #f0f0f0; 
+        }
+        button { 
+            margin: 10px 5px; 
+            padding: 12px 24px; 
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .count {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: #666;
+        }
+        .mbti {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .refresh-info {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MBTAI Backend Data Viewer</h1>
+        
+        <div id="status"></div>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button onclick="loadActive()">📊 Load Active Users</button>
+            <button onclick="loadAll()">📋 Load All Users</button>
+            <button onclick="loadBoth()">🔄 Load Both</button>
+            <button onclick="clearData()">🗑️ Clear Data</button>
+        </div>
+        
+        <h2>📊 Active Users (Last 15 seconds)</h2>
+        <div id="active-count" class="count"></div>
+        <table id="active-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>MBTI Type</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Last Updated</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        
+        <h2>📚 All Users (Complete Database)</h2>
+        <div id="all-count" class="count"></div>
+        <table id="all-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>MBTI Type</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Last Updated</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        
+        <div class="refresh-info">
+            ⏰ Auto-refreshing every 5 seconds | Last update: <span id="last-update"></span>
+        </div>
+    </div>
+
+    <script>
+        let lastUpdate = new Date();
+        
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 3000);
+        }
+        
+        function updateLastUpdate() {
+            lastUpdate = new Date();
+            document.getElementById('last-update').textContent = lastUpdate.toLocaleTimeString();
+        }
+        
+        function loadActive() {
+            fetch('/api/active-users')
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to load active users');
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById('active-count').innerHTML = `📊 Active Users: ${data.length}`;
+                    renderTable(data, 'active-table');
+                    showStatus(`✅ Loaded ${data.length} active users`);
+                    updateLastUpdate();
+                })
+                .catch(error => {
+                    showStatus(`❌ Error loading active users: ${error.message}`, 'error');
+                });
+        }
+        
+        function loadAll() {
+            fetch('/api/all-users')
+                .then(res => {
+                    if (!res.ok) throw new Error('Failed to load all users');
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById('all-count').innerHTML = `📋 Total Users: ${data.length}`;
+                    renderTable(data, 'all-table');
+                    showStatus(`✅ Loaded ${data.length} total users`);
+                    updateLastUpdate();
+                })
+                .catch(error => {
+                    showStatus(`❌ Error loading all users: ${error.message}`, 'error');
+                });
+        }
+        
+        function loadBoth() {
+            loadActive();
+            loadAll();
+        }
+        
+        function clearData() {
+            document.getElementById('active-table').getElementsByTagName('tbody')[0].innerHTML = '';
+            document.getElementById('all-table').getElementsByTagName('tbody')[0].innerHTML = '';
+            document.getElementById('active-count').innerHTML = '';
+            document.getElementById('all-count').innerHTML = '';
+            showStatus('🗑️ Data cleared');
+        }
+        
+        function renderTable(data, tableId) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = '';
+            
+            if (data.length === 0) {
+                const row = tbody.insertRow();
+                row.innerHTML = '<td colspan="6" style="text-align: center; color: #666; padding: 20px;">No data available</td>';
+                return;
+            }
+            
+            data.forEach(user => {
+                const row = tbody.insertRow();
+                const timestamp = new Date(user.timestamp);
+                const timeAgo = getTimeAgo(timestamp);
+                
+                row.innerHTML = `
+                    <td><strong>${user.id}</strong></td>
+                    <td class="mbti">${user.mbtiType || 'N/A'}</td>
+                    <td>${user.latitude ? user.latitude.toFixed(6) : 'N/A'}</td>
+                    <td>${user.longitude ? user.longitude.toFixed(6) : 'N/A'}</td>
+                    <td>
+                        <div>${timestamp.toLocaleString()}</div>
+                        <div class="timestamp">${timeAgo}</div>
+                    </td>
+                    <td>${user.ip || 'N/A'}</td>
+                `;
+            });
+        }
+        
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSecs = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSecs / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            
+            if (diffSecs < 60) return `${diffSecs}s ago`;
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${Math.floor(diffHours / 24)}d ago`;
+        }
+        
+        // Load both tables on page load
+        loadBoth();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(loadBoth, 5000);
+        
+        // Show initial status
+        showStatus('🚀 Backend data viewer loaded successfully');
+    </script>
+</body>
+</html>

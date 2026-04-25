@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MBTAI Live Monitor</title>
+  <style>
+    :root {
+      --green:  #22c55e;
+      --yellow: #eab308;
+      --red:    #ef4444;
+      --bg:     #0f172a;
+      --card:   #1e293b;
+      --border: #334155;
+      --text:   #f1f5f9;
+      --muted:  #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: 0.1em;
+      color: var(--green);
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ---------- stats bar ---------- */
+    .stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      min-width: 110px;
+    }
+    .stat-value { font-size: 1.6rem; font-weight: bold; }
+    .stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.yellow { color: var(--yellow); }
+    .stat-value.red    { color: var(--red); }
+
+    /* ---------- user grid ---------- */
+    #user-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .user-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: border-color 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Colour-coded left bar */
+    .user-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: var(--muted);
+      border-radius: 10px 0 0 10px;
+    }
+    .user-card.fresh::before  { background: var(--green); }
+    .user-card.recent::before { background: var(--yellow); }
+    .user-card.stale::before  { background: var(--red); }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .mbti-badge {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #a78bfa;
+    }
+    .status-badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .badge-fresh  { background: #14532d; color: var(--green); }
+    .badge-recent { background: #713f12; color: var(--yellow); }
+    .badge-stale  { background: #7f1d1d; color: var(--red); }
+    .badge-closing { background: #1e3a5f; color: #93c5fd; }
+
+    .card-row {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .card-row span:last-child { color: var(--text); text-align: right; }
+
+    /* heartbeat pulse ring */
+    .pulse-ring {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-right: 4px;
+      animation: none;
+    }
+    .fresh .pulse-ring  { animation: pulse 1.5s infinite; }
+    .recent .pulse-ring { background: var(--yellow); }
+    .stale .pulse-ring  { background: var(--red); }
+
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+      70%  { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+    }
+
+    /* ---------- heartbeat timeline ---------- */
+    .hb-bar {
+      margin-top: 8px;
+      display: flex;
+      gap: 2px;
+      height: 18px;
+      align-items: flex-end;
+    }
+    .hb-tick {
+      flex: 1;
+      border-radius: 2px;
+      min-height: 4px;
+      transition: height .2s;
+    }
+
+    /* ---------- empty state ---------- */
+    #empty {
+      grid-column: 1/-1;
+      text-align: center;
+      color: var(--muted);
+      padding: 40px;
+      font-size: 0.9rem;
+    }
+
+    /* ---------- log ---------- */
+    #log-wrap {
+      margin-top: 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    #log-header {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.08em;
+    }
+    #log {
+      font-size: 0.68rem;
+      color: #64748b;
+      max-height: 120px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    #log .entry { color: #cbd5e1; }
+    #log .entry.match { color: #a78bfa; }
+
+    /* ---------- ticker ---------- */
+    #ticker {
+      position: fixed;
+      bottom: 12px; right: 16px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    #ticker span { color: var(--green); }
+  </style>
+</head>
+<body>
+
+<h1>⬤ MBTAI Live Monitor</h1>
+<p class="subtitle">Auto-refreshes every 5 s &nbsp;|&nbsp; heartbeat threshold: 10 s fresh / 30 s recent</p>
+
+<div class="stats">
+  <div class="stat">
+    <div class="stat-value green" id="s-active">0</div>
+    <div class="stat-label">ACTIVE</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value yellow" id="s-recent">0</div>
+    <div class="stat-label">RECENT (≤30 s)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value red" id="s-stale">0</div>
+    <div class="stat-label">STALE / GONE</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="s-total" style="color:#e2e8f0">0</div>
+    <div class="stat-label">TOTAL IN DB</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="s-matches" style="color:#a78bfa">0</div>
+    <div class="stat-label">ACTIVE MATCHES</div>
+  </div>
+</div>
+
+<div id="user-grid"></div>
+
+<div id="log-wrap">
+  <div id="log-header">ACTIVITY LOG</div>
+  <div id="log"></div>
+</div>
+
+<div id="ticker">next refresh in <span id="countdown">5</span>s</div>
+
+<script>
+// Per-user heartbeat history (last 20 ticks)
+const hbHistory = {};
+let allUsers = [];
+let countdown = 5;
+
+function ageSec(ts) {
+  return Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+}
+
+function tier(user) {
+  const age = ageSec(user.timestamp);
+  if (user.isActive === false) return 'closing';
+  if (age <= 10)  return 'fresh';
+  if (age <= 30)  return 'recent';
+  return 'stale';
+}
+
+function tierBadge(t) {
+  const map = {
+    fresh:   '<span class="status-badge badge-fresh">● LIVE</span>',
+    recent:  '<span class="status-badge badge-recent">◔ RECENT</span>',
+    stale:   '<span class="status-badge badge-stale">✕ STALE</span>',
+    closing: '<span class="status-badge badge-closing">↓ CLOSING</span>',
+  };
+  return map[t] || '';
+}
+
+function renderHbBar(userId) {
+  const hist = hbHistory[userId] || [];
+  // 20 slots; filled = green tick, empty = dark tick
+  const slots = 20;
+  const filled = hist.length;
+  const heights = Array.from({ length: slots }, (_, i) => {
+    // older ticks are shorter
+    const idx = i - (slots - filled);
+    if (idx < 0) return 4; // empty slot
+    return 4 + (i / slots) * 14; // grow from left to right
+  });
+  const colors = Array.from({ length: slots }, (_, i) => {
+    const idx = i - (slots - filled);
+    if (idx < 0) return '#1e293b';
+    const age = hist[idx];
+    if (age <= 10) return '#22c55e';
+    if (age <= 30) return '#eab308';
+    return '#ef4444';
+  });
+  return heights.map((h, i) =>
+    `<div class="hb-tick" style="height:${h}px;background:${colors[i]}"></div>`
+  ).join('');
+}
+
+function renderCard(user) {
+  const t = tier(user);
+  const age = ageSec(user.timestamp);
+  const matchCount = (user.matches || []).filter(m => m.status === 'active').length;
+  const shortId = user.id.slice(-8);
+  const lat = typeof user.latitude  === 'number' ? user.latitude.toFixed(5)  : '?';
+  const lon = typeof user.longitude === 'number' ? user.longitude.toFixed(5) : '?';
+
+  return `
+  <div class="user-card ${t}" id="card-${user.id}">
+    <div class="card-header">
+      <span class="mbti-badge">
+        <span class="pulse-ring"></span>${user.mbtiType || '?'}
+      </span>
+      ${tierBadge(t)}
+    </div>
+    <div class="card-row"><span>ID</span><span>…${shortId}</span></div>
+    <div class="card-row"><span>Location</span><span>${lat}, ${lon}</span></div>
+    <div class="card-row"><span>Last heartbeat</span><span>${age}s ago</span></div>
+    <div class="card-row"><span>Active matches</span><span>${matchCount}</span></div>
+    ${user.currentMatch ? `<div class="card-row"><span>Current match</span><span style="color:#a78bfa">✓ matched</span></div>` : ''}
+    <div class="hb-bar">${renderHbBar(user.id)}</div>
+  </div>`;
+}
+
+function addLog(msg, cls = '') {
+  const log = document.getElementById('log');
+  const ts  = new Date().toLocaleTimeString();
+  log.innerHTML = `<div class="entry ${cls}">[${ts}] ${msg}</div>` + log.innerHTML;
+  // trim to 40 entries
+  const entries = log.querySelectorAll('.entry');
+  if (entries.length > 40) entries[entries.length - 1].remove();
+}
+
+async function refresh() {
+  try {
+    const [active, all] = await Promise.all([
+      fetch('/api/active-users').then(r => r.json()),
+      fetch('/api/all-users').then(r => r.json()),
+    ]);
+
+    // Track new arrivals / departures
+    const prevIds = new Set(allUsers.map(u => u.id));
+    const currIds = new Set(all.map(u => u.id));
+
+    all.forEach(u => {
+      if (!prevIds.has(u.id)) addLog(`+++ ${u.mbtiType} joined (…${u.id.slice(-6)})`);
+    });
+    allUsers.forEach(u => {
+      if (!currIds.has(u.id)) addLog(`--- ${u.mbtiType} left (…${u.id.slice(-6)})`);
+    });
+
+    allUsers = all;
+
+    // Update heartbeat history
+    all.forEach(u => {
+      if (!hbHistory[u.id]) hbHistory[u.id] = [];
+      const h = hbHistory[u.id];
+      const age = ageSec(u.timestamp);
+      // only push if this is a new tick (different from last)
+      if (h.length === 0 || h[h.length - 1] !== age) {
+        h.push(age);
+        if (h.length > 20) h.shift();
+      }
+    });
+
+    // Stats
+    const fresh   = all.filter(u => tier(u) === 'fresh').length;
+    const recent  = all.filter(u => tier(u) === 'recent').length;
+    const stale   = all.filter(u => tier(u) === 'stale').length;
+    const matches = all.reduce((n, u) =>
+      n + (u.currentMatch ? 1 : 0), 0) / 2; // each match counted for 2 users
+
+    document.getElementById('s-active').textContent  = active.length;
+    document.getElementById('s-recent').textContent  = recent;
+    document.getElementById('s-stale').textContent   = stale;
+    document.getElementById('s-total').textContent   = all.length;
+    document.getElementById('s-matches').textContent = Math.ceil(matches);
+
+    // Grid
+    const grid = document.getElementById('user-grid');
+    if (all.length === 0) {
+      grid.innerHTML = '<div id="empty">No users in database yet.<br>Open the app and complete onboarding to see users appear here.</div>';
+    } else {
+      // Sort: fresh first, then recent, then stale
+      const sorted = [...all].sort((a, b) => {
+        const order = { fresh: 0, recent: 1, closing: 2, stale: 3 };
+        return (order[tier(a)] ?? 3) - (order[tier(b)] ?? 3);
+      });
+      grid.innerHTML = sorted.map(renderCard).join('');
+    }
+
+  } catch (e) {
+    addLog('⚠ fetch error: ' + e.message);
+  }
+}
+
+// Countdown ticker
+setInterval(() => {
+  countdown--;
+  if (countdown <= 0) {
+    countdown = 5;
+    refresh();
+  }
+  document.getElementById('countdown').textContent = countdown;
+}, 1000);
+
+// Initial load
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Users & Active Users</title>
+  <style>
+    body { font-family: sans-serif; background: #f7fafc; margin: 0; padding: 2rem; }
+    h1, h2 { color: #333; }
+    table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 2px 8px #0001; margin-bottom: 2rem; }
+    th, td { padding: 0.75rem 1rem; border: 1px solid #e2e8f0; text-align: left; }
+    th { background: #f1f5f9; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .mbti { font-weight: bold; color: #6366f1; }
+    .active { background: #d1fae5 !important; }
+    .count { font-size: 1.1em; color: #6366f1; margin-left: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>All Users & Active Users</h1>
+  <h2>Active Users (last 15 seconds) <span id="active-count" class="count"></span></h2>
+  <table id="active-users-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>MBTI Type</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <h2>All Users <span id="all-count" class="count"></span></h2>
+  <table id="users-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>MBTI Type</th>
+        <th>Latitude</th>
+        <th>Longitude</th>
+        <th>Timestamp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    function renderTable(users, tableId) {
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      tbody.innerHTML = '';
+      users.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${user.id || ''}</td>
+          <td class="mbti">${user.mbtiType || ''}</td>
+          <td>${user.latitude || ''}</td>
+          <td>${user.longitude || ''}</td>
+          <td>${user.timestamp ? new Date(user.timestamp).toLocaleString() : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    function updateCounts() {
+      fetch('/api/active-users')
+        .then(res => res.json())
+        .then(users => {
+          renderTable(users, 'active-users-table');
+          document.getElementById('active-count').textContent = `(${users.length})`;
+        });
+      fetch('/api/all-users')
+        .then(res => res.json())
+        .then(users => {
+          renderTable(users, 'users-table');
+          document.getElementById('all-count').textContent = `(${users.length})`;
+        });
+    }
+    updateCounts();
+    setInterval(updateCounts, 5000);
+  </script>
+</body>
+</html> 
