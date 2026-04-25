@@ -8,9 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "setup:https": "bash scripts/setup-https.sh",
     "dev:backend": "cd backend && npm run start",
     "dev:frontend": "vite",
-    "dev:all": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\""
+    "dev:all": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:https": "MBTAI_HTTPS=1 npm run dev:all",
+    "tunnel:cloudflared": "cloudflared tunnel --url http://localhost:5173",
+    "tunnel:ngrok": "ngrok http 5173"
   },
   "dependencies": {
     "cors": "^2.8.5",
