@@ -271,17 +271,29 @@ app.post('/api/complete-meeting', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/mark-closing  – sendBeacon from beforeunload / pagehide
+// POST /api/mark-closing  – sendBeacon from beforeunload / pagehide.
+// sendBeacon does not let you set Content-Type, so the body arrives as
+// text/plain (or no Content-Type at all) and express.json() skips it. We
+// add express.text() at the route level and parse manually so this route
+// works for any Content-Type — JSON, text/plain, or empty.
 // ---------------------------------------------------------------------------
-app.post('/api/mark-closing', (req, res) => {
-  const { id } = req.body;
+app.post('/api/mark-closing', express.text({ type: '*/*', limit: '4kb' }), (req, res) => {
+  let id = null;
+  const b = req.body;
+  if (typeof b === 'string' && b.length > 0) {
+    try { id = JSON.parse(b)?.id ?? null; } catch { /* malformed payload — ignore */ }
+  } else if (b && typeof b === 'object') {
+    id = b.id ?? null;
+  }
+  if (!id) return res.json({ status: 'ok', skipped: 'no id' });
+
   const users = readUsers();
   const uIdx = users.findIndex(u => u.id === id);
   if (uIdx !== -1) {
     users[uIdx].isActive    = false;
     users[uIdx].closingTime = new Date().toISOString();
     writeUsers(users);
-    console.log(`[closing] ${id.slice(-6)}`);
+    console.log(`[closing] ${String(id).slice(-6)}`);
   }
   res.json({ status: 'ok' });
 });
@@ -321,12 +333,17 @@ setInterval(() => {
     writeUsers(kept);
     console.log(`[cleanup] removed ${before - kept.length} stale users`);
   }
-}, 15000); // run every 15 s (aligned with 5 s heartbeat cadence)
+}, 15000).unref(); // run every 15 s; .unref() so it doesn't keep the test runner alive
 
 // ---------------------------------------------------------------------------
-// Start – listen on ALL interfaces so LAN devices can reach the backend
+// Export the app so tests can mount it on an ephemeral port. Only call
+// listen() when run directly (node index.js) — not when required by tests.
 // ---------------------------------------------------------------------------
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Backend listening on http://0.0.0.0:${PORT}`);
-  console.log(`   Monitor: http://localhost:${PORT}/monitor\n`);
-});
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 Backend listening on http://0.0.0.0:${PORT}`);
+    console.log(`   Monitor: http://localhost:${PORT}/monitor\n`);
+  });
+}

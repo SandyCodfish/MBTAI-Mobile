@@ -16,7 +16,11 @@ const httpsConfig =
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: { exclude: ['lucide-react'] },
+  // NOTE: do NOT exclude lucide-react. It has 1000+ icon files; without
+  // pre-bundling, Vite serves each icon as a separate ES module, which
+  // causes hundreds of HTTP requests on first load. iOS Safari over a
+  // cloudflared tunnel chokes on the fan-out and shows a white screen.
+  optimizeDeps: { include: ['lucide-react'] },
   server: {
     host: true, // bind 0.0.0.0 so phones on the LAN can reach it
     port: 5173,

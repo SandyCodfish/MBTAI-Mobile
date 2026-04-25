@@ -8,6 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "npm --prefix backend test",
+    "test:smoke": "npm --prefix backend test && npm run build",
     "setup:https": "bash scripts/setup-https.sh",
     "dev:backend": "cd backend && npm run start",
     "dev:frontend": "vite",
