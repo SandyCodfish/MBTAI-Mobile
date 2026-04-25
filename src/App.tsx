@@ -56,6 +56,18 @@ function getCurrentLocation(): Promise<GeolocationPosition> {
 }
 
 // ---------------------------------------------------------------------------
+// Friendly mapping for GeolocationPositionError codes. Browsers return
+// "User denied Geolocation" (and similar) — replace with actionable copy.
+// ---------------------------------------------------------------------------
+function friendlyGeoError(err: unknown): string {
+  const e = err as Partial<GeolocationPositionError> & { message?: string };
+  if (e.code === 1) return 'Permission denied. Allow location in your browser/OS settings, then come back to this tab.';
+  if (e.code === 2) return 'Location unavailable. Move to a window or outdoors and try again.';
+  if (e.code === 3) return 'Location request timed out. Try again.';
+  return `Location error: ${e.message ?? 'unknown'}`;
+}
+
+// ---------------------------------------------------------------------------
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -135,34 +147,63 @@ function App() {
   }, [currentUser]);
 
   // -------------------------------------------------------------------------
-  // One-shot location grab after onboarding
+  // One-shot location grab after onboarding. We query the Permissions API
+  // first — if it already says 'denied', skip getCurrentPosition (which would
+  // just return the same denial with a worse message) and show the friendly
+  // "go to Settings" copy directly.
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (isOnboarding || !currentUser || locationSent) return;
-
-    getCurrentLocation()
-      .then(async (pos) => {
+    let cancelled = false;
+    (async () => {
+      const perm = await queryLocationPermission();
+      if (cancelled) return;
+      setLocationPermission(perm);
+      if (perm === 'denied') {
+        setLocationError(friendlyGeoError({ code: 1 }));
+        return;
+      }
+      try {
+        const pos = await getCurrentLocation();
+        if (cancelled) return;
         await sendLocationToBackend(pos);
         setLocationSent(true);
         setLocationError(null);
         setLocationPermission('granted');
-      })
-      .catch((err: GeolocationPositionError | Error) => {
-        const code = (err as GeolocationPositionError).code;
-        let msg = 'Location error: ';
-        if (code === 1) {
-          msg += 'Permission denied. Please allow location in your browser settings.';
-          setLocationPermission('denied');
-        } else if (code === 2) {
-          msg += 'Location unavailable. Check your device location settings.';
-        } else if (code === 3) {
-          msg += 'Request timed out. Please try again.';
-        } else {
-          msg += (err as Error).message;
-        }
-        setLocationError(msg);
-      });
+      } catch (err) {
+        if (cancelled) return;
+        if ((err as GeolocationPositionError)?.code === 1) setLocationPermission('denied');
+        setLocationError(friendlyGeoError(err));
+      }
+    })();
+    return () => { cancelled = true; };
   }, [isOnboarding, currentUser, locationSent, sendLocationToBackend]);
+
+  // -------------------------------------------------------------------------
+  // Auto-recover when the user returns from OS Settings after granting
+  // location. iOS Safari & Android Chrome both fire `visibilitychange` /
+  // window `focus` when the tab comes back to the foreground. Re-query the
+  // Permissions API; if it flipped to 'granted', clear the stale error and
+  // re-arm the one-shot effect above.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      queryLocationPermission().then((p) => {
+        setLocationPermission(p);
+        if (p === 'granted' && locationError) {
+          setLocationError(null);
+          setLocationSent(false);
+        }
+      });
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [locationError]);
 
   // -------------------------------------------------------------------------
   // Polling – every 8 s: nearby users, interactions, match check
@@ -342,15 +383,23 @@ function App() {
     setShowMatchingInterface(false);
   };
 
-  const retryLocation = () => {
+  const retryLocation = async () => {
     setLocationError(null);
-    getCurrentLocation()
-      .then(async (pos) => {
-        await sendLocationToBackend(pos);
-        setLocationSent(true);
-        setLocationPermission('granted');
-      })
-      .catch((err) => setLocationError(`Location error: ${(err as Error).message}`));
+    const perm = await queryLocationPermission();
+    setLocationPermission(perm);
+    if (perm === 'denied') {
+      // Browser still says denied — don't bother getCurrentPosition.
+      setLocationError(friendlyGeoError({ code: 1 }));
+      return;
+    }
+    try {
+      const pos = await getCurrentLocation();
+      await sendLocationToBackend(pos);
+      setLocationSent(true);
+      setLocationPermission('granted');
+    } catch (err) {
+      setLocationError(friendlyGeoError(err));
+    }
   };
 
   // -------------------------------------------------------------------------

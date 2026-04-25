@@ -103,6 +103,8 @@ Open the printed URL on the phone — geolocation just works, and the `/api` pro
 - **Don't commit `certs/`.** They're in `.gitignore`. The original `china-tunnel-fix` branch committed `localhost+2*.pem` — those were *private keys*. Public repo, never again.
 - **`backend/users.json`** is runtime data, also gitignored.
 - **CORS** is wide open (`origin: '*'`) for demo simplicity — lock down before any non-demo deploy.
+- **China access (no VPN):** use the **cloudflared** tunnel (`npm run tunnel:cloudflared`). `*.trycloudflare.com` URLs reach mainland China without a VPN in our testing. **Avoid ngrok** — `*.ngrok-free.app` is frequently blocked by the GFW. If a specific Cloudflare subdomain ever stops resolving, just restart the tunnel — Cloudflare assigns a new random subdomain each time.
+- **Cross-browser:** tested on iOS Safari, iOS Chrome (WKWebView), Android Chrome, desktop Safari, desktop Chrome. The geolocation flow uses the Permissions API where available and falls back to `'unknown'` on Safari < 16. If a user denies location and later re-grants it in OS Settings, the page **auto-recovers** when the tab regains focus (no manual refresh needed) — see the `visibilitychange`/`focus` listener in `src/App.tsx`.
 - **Express 5** — `backend/package.json` pins to `^5.1.0`; some older middleware may complain.
 
 ---
