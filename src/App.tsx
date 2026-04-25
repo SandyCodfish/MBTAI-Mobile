@@ -4,6 +4,12 @@ import Dashboard from './components/Dashboard';
 import MatchingInterface from './components/MatchingInterface';
 import { User } from './types/user';
 import { API_URL } from './config';
+import {
+  getUserStorageKey,
+  shouldForceOnboarding,
+  cleanFreshFlag,
+  migrateLegacyKey,
+} from './storage';
 
 // ---------------------------------------------------------------------------
 // Safari (iOS) does NOT support navigator.permissions.query for geolocation.
@@ -94,14 +100,21 @@ function App() {
   // Bootstrap: restore saved user or force onboarding
   // -------------------------------------------------------------------------
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('newuser')) {
+    // One-time migration from legacy single-key storage to slot-keyed.
+    migrateLegacyKey();
+
+    const search = window.location.search;
+    const storageKey = getUserStorageKey(search);
+
+    if (shouldForceOnboarding(search)) {
       setCurrentUser(null);
       setIsOnboarding(true);
-      localStorage.removeItem('mbti-user');
+      localStorage.removeItem(storageKey);
+      // Strip ?newuser so a tab reload (iOS reaping) doesn't re-wipe.
+      window.history.replaceState({}, '', cleanFreshFlag(window.location.href));
       return;
     }
-    const savedUser = localStorage.getItem('mbti-user');
+    const savedUser = localStorage.getItem(storageKey);
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
       setIsOnboarding(false);
@@ -355,12 +368,12 @@ function App() {
   // -------------------------------------------------------------------------
   const handleOnboardingComplete = (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('mbti-user', JSON.stringify(user));
+    localStorage.setItem(getUserStorageKey(window.location.search), JSON.stringify(user));
     setIsOnboarding(false);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('mbti-user');
+    localStorage.removeItem(getUserStorageKey(window.location.search));
     setCurrentUser(null);
     setIsOnboarding(true);
     setLocationSent(false);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Shield, Edit3, Save } from 'lucide-react';
 import { User as UserType } from '../types/user';
+import { getUserStorageKey } from '../storage';
 
 interface ProfileSettingsProps {
   user: UserType;
@@ -24,7 +25,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user }) => {
   const [formData, setFormData] = useState(user);
 
   const handleSave = () => {
-    localStorage.setItem('mbti-user', JSON.stringify(formData));
+    localStorage.setItem(getUserStorageKey(window.location.search), JSON.stringify(formData));
     setIsEditing(false);
   };
 

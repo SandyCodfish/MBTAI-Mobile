@@ -4,6 +4,7 @@ import { User, PotentialMatch } from '../types/user';
 import NearbyMatches from './NearbyMatches';
 import ProfileSettings from './ProfileSettings';
 import { generateMockMatches } from '../utils/mockData';
+import { getUserStorageKey } from '../storage';
 
 interface DashboardProps {
   user: User;
@@ -68,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout, testNearby, realN
     setIsVisible(!isVisible);
     // In a real app, this would update the backend
     const updatedUser = { ...user, isVisible: !isVisible };
-    localStorage.setItem('mbti-user', JSON.stringify(updatedUser));
+    localStorage.setItem(getUserStorageKey(window.location.search), JSON.stringify(updatedUser));
   };
 
   // Convert real users to PotentialMatch format with memoization to prevent flickering

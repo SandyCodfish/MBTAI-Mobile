@@ -88,13 +88,24 @@ Open the printed URL on the phone — geolocation just works, and the `/api` pro
 
 ---
 
-## Demo flow (two users)
+## Demo flow
 
-1. Open the app on two devices (or two browser profiles).
-2. Onboard with `?newuser` appended: e.g. `https://<your-tunnel>/?newuser`.
-3. Allow location.
-4. In *Nearby*, user A sends Wave / Smile / Coffee to user B.
-5. User B sends the same back. A match opens.
+### Multi-persona in a single browser (best for live demos)
+
+Each tab gets its own persisted persona via the `?user=<slot>` query param. Opening `…/?user=A` and `…/?user=B` in two tabs of the same browser gives you two independent users with isolated localStorage and onboarding state.
+
+1. Tab 1: `https://<your-tunnel>/?user=A` → onboard once → User A persists in this slot forever.
+2. Tab 2: `https://<your-tunnel>/?user=B` → onboard once → User B persists.
+3. (Optional) Tab 3: `https://<your-tunnel>/?user=C` → User C. Repeat for as many personas as you need.
+4. Allow location in each tab.
+5. In *Nearby*, A sends Wave / Smile / Coffee to B.
+6. B sends the same back → match opens on both.
+
+Slot data is keyed by `mbti-user-<slot>` in localStorage and survives tab close, browser restart, and iOS tab reaping. To force a fresh onboarding for a specific slot, append `&newuser`: e.g. `https://<your-tunnel>/?user=A&newuser`. The flag self-cleans from the URL after consumption so a reload won't keep wiping you.
+
+### Two devices (alternative)
+
+Open `https://<your-tunnel>/` (no `?user`) on each device. Each device's `default` slot persists independently. First visit will onboard automatically because there's no saved user.
 
 ---
 
